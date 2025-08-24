@@ -11,6 +11,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+console.log("🔑 Stripe Key:", process.env.STRIPE_SECRET_KEY); // Solo para debug
+
+if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("❌ STRIPE_SECRET_KEY no está definida");
+}
+
 app.post("/api/create-checkout-session", async (req, res) => {
     try {
         const session = await stripe.checkout.sessions.create({
