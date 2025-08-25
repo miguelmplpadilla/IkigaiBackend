@@ -2,7 +2,7 @@ name: Keep Render Awake
 
 on:
   schedule:
-    - cron: '7,21,37,51 * * * *'
+    - cron: '*/6 * * * *'
   workflow_dispatch: {}
 
 jobs:
@@ -14,4 +14,4 @@ jobs:
         env:
           URL: ${{ secrets.RENDER_HEALTH_URL }}
         run: |
-          curl -f -sS -m 10 --retry 2 --retry-max-time 20 -o /dev/null "$URL"
+          curl -sS -m 10 --retry 2 --retry-max-time 20 -o /dev/null "$URL"
