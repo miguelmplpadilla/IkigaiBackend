@@ -27,17 +27,19 @@ app.get("/", (req, res) => {
 // Ruta para crear la sesión de pago
 app.post("/api/create-checkout-session", async (req, res) => {
     try {
+        const { price, success_url, cancel_url } = req.body;
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
             line_items: [
                 {
-                    price: "price_1RzcHCGWqmRF2kGUkUuuvhfC", // Reemplaza por el ID real de tu producto en Stripe
+                    price: price, // Reemplaza por el ID real de tu producto en Stripe
                     quantity: 1,
                 },
             ],
             mode: "payment",
-            success_url: "https://ikigaipsychology.com/#contact",
-            cancel_url: "https://ikigaipsychology.com/#team",
+            success_url: success_url,
+            cancel_url: cancel_url,
         });
 
         res.json({ id: session.id });
