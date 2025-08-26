@@ -4,6 +4,8 @@ import Stripe from "stripe";
 import dotenv from "dotenv";
 const Resend = require('resend').Resend;
 import bodyParser from "body-parser";
+import { google } from 'googleapis';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -36,7 +38,7 @@ app.get("/", (req, res) => {
 // Crear sesión de pago (NO TOCADA)
 app.post("/api/create-checkout-session", async (req, res) => {
     try {
-        const { price, success_url, cancel_url, productName, html_email_sent } = req.body;
+        const { price, success_url, cancel_url, productName, idEmailSendTo } = req.body;
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
@@ -51,7 +53,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
             cancel_url: cancel_url,
             metadata: {
                 product_name: productName,
-                html_email_sent: html_email_sent
+                idEmailSendTo: idEmailSendTo
             }
         });
 
@@ -81,7 +83,7 @@ app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, r
 
         console.log('✅ Pago completado:', session.id);
 
-        await SendConfirmationEmail(session.customer_email || "", session.metadata?.htmlEmailSend || "no");
+        await SendConfirmationEmail(session.customer_email || "", session.metadata?.idEmailSendTo || "");
         await SendConfirmationEmailIkigai(session.customer_email || "Error al optener email del cliente",
             session.metadata?.product_name || "Error al obtener nombre del producto");
     }
@@ -97,7 +99,7 @@ app.listen(PORT, () => {
 
 const resend = new Resend('re_j4EWE2zR_6NvFsGzR6Rx4pEAUbUjbZwy9');
 
-async function SendConfirmationEmail(emailTo: string, htmlEmailSend: string) {
+async function SendConfirmationEmail(emailTo: string, idEmailSendTo: string) {
     try {
         if (emailTo === "") {
             throw new Error("❌ El email del cliente ha llegado vacio");
@@ -106,7 +108,7 @@ async function SendConfirmationEmail(emailTo: string, htmlEmailSend: string) {
             from: 'Ikigai Psychology <onboarding@resend.dev>',
             to: [emailTo],
             subject: 'Gracias por tu compra 🧾',
-            html: htmlEmailSend
+            html: GetRemoteConfigValue(idEmailSendTo)
         });
 
         if (error) {
@@ -139,6 +141,45 @@ async function SendConfirmationEmailIkigai(emailCustomer: string, titleProduct: 
         }
     } catch (err) {
         console.error('❌ Error inesperado:', err);
+    }
+}
+
+const SERVICE_ACCOUNT_PATH = 'serviceAccountKey.json';
+const PROJECT_ID = 'ikigaiweb-ec240';
+const SCOPES = ['https://www.googleapis.com/auth/firebase.remoteconfig'];
+
+export async function GetRemoteConfigValue(paramId: string): Promise<string | null> {
+    const auth = new google.auth.GoogleAuth({
+        keyFile: SERVICE_ACCOUNT_PATH,
+        scopes: SCOPES,
+    });
+
+    const client = await auth.getClient();
+    const token = await client.getAccessToken();
+
+    const url = `https://firebaseremoteconfig.googleapis.com/v1/projects/${PROJECT_ID}/remoteConfig`;
+
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${token.token}`,
+                'Accept-Encoding': 'gzip',
+            },
+        });
+
+        const remoteConfig = response.data;
+
+        const param = remoteConfig.parameters?.[paramId];
+
+        if (param && param.defaultValue && param.defaultValue.value) {
+            return param.defaultValue.value;
+        } else {
+            console.warn(`⚠️ Parámetro '${paramId}' no encontrado o sin valor.`);
+            return null;
+        }
+    } catch (error: any) {
+        console.error('❌ Error al obtener Remote Config:', error.response?.data || error.message);
+        return null;
     }
 }
 
