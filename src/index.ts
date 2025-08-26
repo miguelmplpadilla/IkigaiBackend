@@ -3,13 +3,21 @@ import cors from "cors";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import axios from "axios";
-import bodyParser from 'body-parser';
+import bodyParser from "body-parser";
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+
+// 👇 Este middleware evita que express.json() se aplique al webhook
+app.use((req, res, next) => {
+    if (req.originalUrl === "/webhook") {
+        next(); // salta express.json()
+    } else {
+        express.json()(req, res, next); // aplica JSON solo si no es el webhook
+    }
+});
 
 // Verifica que la clave de Stripe esté definida
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -20,12 +28,12 @@ if (!stripeSecretKey) {
 // Inicializa Stripe
 const stripe = new Stripe(stripeSecretKey);
 
-// Ruta base para probar que el backend esté corriendo
+// Ruta base
 app.get("/", (req, res) => {
     res.send("✅ Backend de Ikigai Psychology activo");
 });
 
-// Ruta para crear la sesión de pago
+// Crear sesión de pago (NO TOCADA)
 app.post("/api/create-checkout-session", async (req, res) => {
     try {
         const { price, success_url, cancel_url } = req.body;
@@ -34,7 +42,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
             payment_method_types: ["card"],
             line_items: [
                 {
-                    price: price, // Reemplaza por el ID real de tu producto en Stripe
+                    price: price,
                     quantity: 1,
                 },
             ],
@@ -50,9 +58,10 @@ app.post("/api/create-checkout-session", async (req, res) => {
     }
 });
 
+// ✅ Webhook Stripe con body crudo
 app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
-    const endpointSecret = 'whsec_gcXNZHIkjaMbnEzYDY3oBsuCoVcLYFuK'; // Lo obtienes desde el dashboard
+    const endpointSecret = 'whsec_gcXNZHIkjaMbnEzYDY3oBsuCoVcLYFuK'; // ⚠️ Reemplaza si cambias de entorno
 
     let event;
 
@@ -73,18 +82,19 @@ app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, r
     res.status(200).send('ok');
 });
 
-// Configura el puerto correctamente para Render
+// Puerto para Render u otros entornos
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`);
 });
 
+// EmailJS
 const serviceID = 'service_j9zpngi';
 const templateID = 'template_fmhzfx4';
-const userID = 'pSQpDE6EkrRZeTkvj'; // (user_id de EmailJS)
+const userID = 'pSQpDE6EkrRZeTkvj';
 
 async function SendConfirmationEmail() {
-    console.log("SendConfirmationEmail")
+    console.log("SendConfirmationEmail");
     const templateParams = {
         from_name: 'Miguel',
         to_name: 'Cliente',
@@ -100,8 +110,8 @@ async function SendConfirmationEmail() {
             template_params: templateParams
         });
 
-        console.log('Correo enviado con éxito:', response.data);
+        console.log('📧 Correo enviado con éxito:', response.data);
     } catch (error: any) {
-        console.error('Error al enviar el correo:', error.response?.data || error.message);
+        console.error('❌ Error al enviar el correo:', error.response?.data || error.message);
     }
 }
