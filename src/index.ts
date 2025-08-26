@@ -82,6 +82,8 @@ app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, r
         console.log('✅ Pago completado:', session.id);
 
         await SendConfirmationEmail(session.customer_email || "", session.metadata?.htmlEmailSend || "no");
+        await SendConfirmationEmailIkigai(session.customer_email || "Error al optener email del cliente",
+            session.metadata?.product_name || "Error al obtener nombre del producto");
     }
 
     res.status(200).send('ok');
@@ -105,6 +107,29 @@ async function SendConfirmationEmail(emailTo: string, htmlEmailSend: string) {
             to: [emailTo],
             subject: 'Gracias por tu compra 🧾',
             html: htmlEmailSend
+        });
+
+        if (error) {
+            console.error('❌ Error al enviar correo con Resend:', error);
+        } else {
+            console.log('📧 Correo enviado con éxito:', data);
+        }
+    } catch (err) {
+        console.error('❌ Error inesperado:', err);
+    }
+}
+
+async function SendConfirmationEmailIkigai(emailCustomer: string, titleProduct: string) {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'Payment Check <onboarding@resend.dev>',
+            to: ["psychologyikigai@gmail.com"],
+            subject: 'Has vendido un producto',
+            html: `
+                <h1>Te han comprado un curso</h1>
+                <p>El cliente con email: ${emailCustomer}</p>
+                <p>Te ha comprado; ${titleProduct}</p>
+            `
         });
 
         if (error) {
