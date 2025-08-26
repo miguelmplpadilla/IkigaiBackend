@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import Stripe from "stripe";
 import dotenv from "dotenv";
-import { Resend } from 'resend';
+const Resend = require('resend').Resend;
 import bodyParser from "body-parser";
 
 dotenv.config();
