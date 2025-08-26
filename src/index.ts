@@ -82,6 +82,7 @@ app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, r
         const session = event.data.object;
 
         console.log('✅ Pago completado:', session.id);
+        console.log("Customer Email: "+session.customer_email);
 
         await SendConfirmationEmail(session.customer_email || "", session.metadata?.idEmailSendTo || "");
         await SendConfirmationEmailIkigai(session.customer_email || "Error al optener email del cliente",
