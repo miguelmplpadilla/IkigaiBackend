@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import Stripe from "stripe";
 import dotenv from "dotenv";
-import axios from "axios";
+import { Resend } from 'resend';
 import bodyParser from "body-parser";
 
 dotenv.config();
@@ -88,30 +88,28 @@ app.listen(PORT, () => {
     console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`);
 });
 
-// EmailJS
-const serviceID = 'service_j9zpngi';
-const templateID = 'template_fmhzfx4';
-const userID = 'pSQpDE6EkrRZeTkvj';
+const resend = new Resend('re_j4EWE2zR_6NvFsGzR6Rx4pEAUbUjbZwy9');
 
 async function SendConfirmationEmail() {
-    console.log("SendConfirmationEmail");
-    const templateParams = {
-        from_name: 'Miguel',
-        to_name: 'Cliente',
-        message: 'Gracias por tu compra. Aquí tienes los detalles del pedido.',
-        reply_to: 'miguelpadillal@hotmail.es'
-    };
-
     try {
-        const response = await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
-            service_id: serviceID,
-            template_id: templateID,
-            user_id: userID,
-            template_params: templateParams
+        const { data, error } = await resend.emails.send({
+            from: 'Ikigai Psychology <onboarding@resend.dev>', // Usa tu dominio si ya lo verificaste
+            to: ['psychologyikigai@gmail.com'], // Cambia esto al correo del cliente real
+            subject: 'Gracias por tu compra 🧾',
+            html: `
+                <h1>Hola Cliente 👋</h1>
+                <p>Gracias por tu compra en Ikigai Psychology.</p>
+                <p>Estamos felices de tenerte con nosotros.</p>
+            `,
         });
 
-        console.log('📧 Correo enviado con éxito:', response.data);
-    } catch (error: any) {
-        console.error('❌ Error al enviar el correo:', error.response?.data || error.message);
+        if (error) {
+            console.error('❌ Error al enviar correo con Resend:', error);
+        } else {
+            console.log('📧 Correo enviado con éxito:', data);
+        }
+    } catch (err) {
+        console.error('❌ Error inesperado:', err);
     }
 }
+
