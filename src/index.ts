@@ -3,7 +3,7 @@ import cors from "cors";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import axios from "axios";
-
+import bodyParser from 'body-parser';
 
 dotenv.config();
 
@@ -43,15 +43,34 @@ app.post("/api/create-checkout-session", async (req, res) => {
             cancel_url: cancel_url,
         });
 
-        if (session.url === success_url) {
-            await SendConfirmationEmail();
-        }
-
         res.json({ id: session.id });
     } catch (err: any) {
         console.error("❌ Error en /create-checkout-session:", err.message);
         res.status(500).json({ message: err.message });
     }
+});
+
+app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = 'whsec_gcXNZHIkjaMbnEzYDY3oBsuCoVcLYFuK'; // Lo obtienes desde el dashboard
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig as string, endpointSecret);
+    } catch (err: any) {
+        console.error('❌ Webhook Error:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        console.log('✅ Pago completado:', session.id);
+
+        await SendConfirmationEmail();
+    }
+
+    res.status(200).send('ok');
 });
 
 // Configura el puerto correctamente para Render
@@ -65,6 +84,7 @@ const templateID = 'template_fmhzfx4';
 const userID = 'pSQpDE6EkrRZeTkvj'; // (user_id de EmailJS)
 
 async function SendConfirmationEmail() {
+    console.log("SendConfirmationEmail")
     const templateParams = {
         from_name: 'Miguel',
         to_name: 'Cliente',
