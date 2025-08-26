@@ -84,8 +84,8 @@ app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, r
         console.log('✅ Pago completado:', session.id);
         console.log("Customer Email: "+session.customer_email);
 
-        await SendConfirmationEmail(session.customer_email || "", session.metadata?.idEmailSendTo || "");
-        await SendConfirmationEmailIkigai(session.customer_email || "Error al optener email del cliente",
+        await SendConfirmationEmail(session.customer_details?.email || "", session.metadata?.idEmailSendTo || "");
+        await SendConfirmationEmailIkigai(session.customer_details?.email || "Error al optener email del cliente",
             session.metadata?.product_name || "Error al obtener nombre del producto");
     }
 
