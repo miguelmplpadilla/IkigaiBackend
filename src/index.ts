@@ -36,7 +36,7 @@ app.get("/", (req, res) => {
 // Crear sesión de pago (NO TOCADA)
 app.post("/api/create-checkout-session", async (req, res) => {
     try {
-        const { price, success_url, cancel_url } = req.body;
+        const { price, success_url, cancel_url, productName } = req.body;
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
@@ -49,6 +49,10 @@ app.post("/api/create-checkout-session", async (req, res) => {
             mode: "payment",
             success_url: success_url,
             cancel_url: cancel_url,
+            metadata: {
+                product_name: productName,
+                html_email_sent: "no"
+            }
         });
 
         res.json({ id: session.id });
@@ -61,7 +65,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
 // ✅ Webhook Stripe con body crudo
 app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
-    const endpointSecret = 'whsec_gcXNZHIkjaMbnEzYDY3oBsuCoVcLYFuK'; // ⚠️ Reemplaza si cambias de entorno
+    const endpointSecret = 'whsec_gcXNZHIkjaMbnEzYDY3oBsuCoVcLYFuK';
 
     let event;
 
@@ -74,9 +78,10 @@ app.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, r
 
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
+
         console.log('✅ Pago completado:', session.id);
 
-        await SendConfirmationEmail();
+        await SendConfirmationEmail(session.customer_email || "", session.metadata?.htmlEmailSend || "no");
     }
 
     res.status(200).send('ok');
@@ -90,17 +95,16 @@ app.listen(PORT, () => {
 
 const resend = new Resend('re_j4EWE2zR_6NvFsGzR6Rx4pEAUbUjbZwy9');
 
-async function SendConfirmationEmail() {
+async function SendConfirmationEmail(emailTo: string, htmlEmailSend: string) {
     try {
+        if (emailTo === "") {
+            throw new Error("❌ El email del cliente ha llegado vacio");
+        }
         const { data, error } = await resend.emails.send({
-            from: 'Ikigai Psychology <onboarding@resend.dev>', // Usa tu dominio si ya lo verificaste
-            to: ['psychologyikigai@gmail.com'], // Cambia esto al correo del cliente real
+            from: 'Ikigai Psychology <onboarding@resend.dev>',
+            to: [emailTo],
             subject: 'Gracias por tu compra 🧾',
-            html: `
-                <h1>Hola Cliente 👋</h1>
-                <p>Gracias por tu compra en Ikigai Psychology.</p>
-                <p>Estamos felices de tenerte con nosotros.</p>
-            `,
+            html: htmlEmailSend
         });
 
         if (error) {
