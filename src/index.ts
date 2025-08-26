@@ -36,7 +36,7 @@ app.get("/", (req, res) => {
 // Crear sesión de pago (NO TOCADA)
 app.post("/api/create-checkout-session", async (req, res) => {
     try {
-        const { price, success_url, cancel_url, productName } = req.body;
+        const { price, success_url, cancel_url, productName, html_email_sent } = req.body;
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
@@ -51,7 +51,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
             cancel_url: cancel_url,
             metadata: {
                 product_name: productName,
-                html_email_sent: "no"
+                html_email_sent: html_email_sent
             }
         });
 
